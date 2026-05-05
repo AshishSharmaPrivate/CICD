@@ -1,0 +1,124 @@
+Task 2: Implement email alerts for CodePipeline success & failure 
+
+
+What we will add in Terraform: 
+
+We’ll create: 
+
+SNS topic 
+Email subscription 
+EventBridge rule for pipeline events 
+
+
+We will use: Flow
+
+CodePipeline → EventBridge → SNS → Email
+
+
+You will get email when:
+
+Pipeline SUCCEEDS
+Pipeline FAILS 
+
+Add this at the BOTTOM of your Terraform file
+
+SNS topic
+
+...................
+
+resource "aws_sns_topic" "pipeline_alerts" {
+  name = "cicd-pipeline-alerts"
+}
+
+....................
+
+Email subscription
+
+.....................
+
+resource "aws_sns_topic_subscription" "email" {
+  topic_arn = aws_sns_topic.pipeline_alerts.arn
+  protocol  = "email"
+  endpoint  = "your-email@gmail.com"   ## Replace with your email
+}
+
+......................
+
+EventBridge rule (pipeline state changes)
+
+This listens to CodePipeline events.
+
+.......................
+
+resource "aws_cloudwatch_event_rule" "pipeline_events" {
+  name = "pipeline-state-change"
+
+  event_pattern = jsonencode({
+    source      = ["aws.codepipeline"]
+    detail-type = ["CodePipeline Pipeline Execution State Change"]
+    detail = {
+      pipeline = [aws_codepipeline.pipeline.name]
+      state    = ["SUCCEEDED", "FAILED"]
+    }
+  })
+}
+
+.......................
+
+
+Allow EventBridge to publish to SNS
+
+.......................
+
+resource "aws_sns_topic_policy" "default" {
+  arn = aws_sns_topic.pipeline_alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "events.amazonaws.com" }
+      Action   = "sns:Publish"
+      Resource = aws_sns_topic.pipeline_alerts.arn
+    }]
+  })
+}
+
+.......................
+
+
+Connect EventBridge → SNS
+
+........................
+
+resource "aws_cloudwatch_event_target" "sns" {
+  rule      = aws_cloudwatch_event_rule.pipeline_events.name
+  target_id = "SendToSNS"
+  arn       = aws_sns_topic.pipeline_alerts.arn
+}
+
+........................
+
+Apply changes
+
+terraform apply
+
+After terraform apply, AWS will send confirmation email — you must click confirm.
+
+
+Test it
+
+Push any change:
+
+git commit --allow-empty -m "test alert"
+git push
+
+You will receive emails like:
+
+### SUCCESS email
+
+Pipeline cicd-pipeline SUCCEEDED
+
+### FAILURE email
+
+Pipeline cicd-pipeline FAILED
