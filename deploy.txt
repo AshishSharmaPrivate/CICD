@@ -620,30 +620,22 @@ nohup node app.js > output.log 2>&1 &
 ………………………………………………… 
 
  
-
  
 
-version: 0.2 
+version: 0.2
 
- 
+phases:
+ install:
+  runtime-versions:
+   nodejs: 18
 
-phases: 
+ build:
+  commands:
+   - echo "Build started"
 
-  build: 
-
-    commands: 
-
-      - echo "Build phase" 
-
- 
-
-artifacts: 
-
-  files: 
-
-    - application/**/* 
-
-  base-directory: application 
+artifacts:
+ files:
+  - '**/*'
 
  
 
